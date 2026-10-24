@@ -1,0 +1,616 @@
+{
+  "user_name": "Micah",
+  "active_grid": "Roku Remote",
+  "grids": {
+    "Roku Remote": {
+      "name": "Roku Remote",
+      "subtitle": "1 connection",
+      "icon": "remote",
+      "buttons": {
+        "1": {
+          "title": "Mute",
+          "subtitle": "Audio",
+          "color": "#ff453a",
+          "action": {
+            "type": "media",
+            "media": "mute"
+          }
+        },
+        "2": {
+          "title": "Play/Pause",
+          "subtitle": "Media",
+          "color": "#0ea5e9",
+          "action": {
+            "type": "media",
+            "media": "play_pause"
+          }
+        },
+        "3": {
+          "title": "Vol Up",
+          "subtitle": "System",
+          "color": "#64748b",
+          "action": {
+            "type": "media",
+            "media": "vol_up"
+          }
+        },
+        "4": {
+          "title": "Vol Down",
+          "subtitle": "System",
+          "color": "#64748b",
+          "action": {
+            "type": "media",
+            "media": "vol_down"
+          }
+        },
+        "5": {
+          "title": "Power",
+          "subtitle": "Sleep",
+          "color": "#ff3b30",
+          "action": {
+            "type": "shell",
+            "command": "pmset displaysleepnow"
+          }
+        },
+        "6": {
+          "title": "Left",
+          "subtitle": "Nav",
+          "color": "#d946ef",
+          "action": {
+            "type": "hotkey",
+            "hotkey": "left"
+          }
+        },
+        "7": {
+          "title": "Select",
+          "subtitle": "OK",
+          "color": "#475569",
+          "action": {
+            "type": "hotkey",
+            "hotkey": "return"
+          }
+        },
+        "8": {
+          "title": "Right",
+          "subtitle": "Nav",
+          "color": "#d946ef",
+          "action": {
+            "type": "hotkey",
+            "hotkey": "right"
+          }
+        },
+        "9": {
+          "title": "Up",
+          "subtitle": "Nav",
+          "color": "#d946ef",
+          "action": {
+            "type": "hotkey",
+            "hotkey": "up"
+          }
+        },
+        "10": {
+          "title": "Down",
+          "subtitle": "Nav",
+          "color": "#d946ef",
+          "action": {
+            "type": "hotkey",
+            "hotkey": "down"
+          }
+        },
+        "11": {
+          "title": "Prev Track",
+          "subtitle": "Media",
+          "color": "#18181b",
+          "action": {
+            "type": "media",
+            "media": "prev"
+          }
+        },
+        "12": {
+          "title": "Next Track",
+          "subtitle": "Media",
+          "color": "#18181b",
+          "action": {
+            "type": "media",
+            "media": "next"
+          }
+        },
+        "13": {
+          "title": "Browser",
+          "subtitle": "Web",
+          "color": "#0ea5e9",
+          "action": {
+            "type": "shell",
+            "command": "open https://github.com"
+          }
+        },
+        "14": {
+          "title": "Terminal",
+          "subtitle": "App",
+          "color": "#f97316",
+          "action": {
+            "type": "shell",
+            "command": "open -a Terminal"
+          }
+        },
+        "15": {
+          "title": "Clear All",
+          "subtitle": "Macro",
+          "color": "#ff453a",
+          "action": {
+            "type": "macro",
+            "macro": [
+              {
+                "type": "media",
+                "media": "mute"
+              },
+              {
+                "type": "delay",
+                "delay_ms": 200
+              },
+              {
+                "type": "shell",
+                "command": "osascript -e 'display notification \"Deck Macro Run\" with title \"Fifine Deck\"'"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "Companion \u2022 SERVICES": {
+      "name": "Companion \u2022 SERVICES",
+      "subtitle": "10 actions",
+      "icon": "services",
+      "buttons": {
+        "1": {
+          "title": "Previous",
+          "subtitle": "Main ProP",
+          "color": "#0ea5e9",
+          "action": {
+            "type": "hotkey",
+            "hotkey": "left"
+          }
+        },
+        "2": {
+          "title": "Next Slide",
+          "subtitle": "Main ProP",
+          "color": "#0ea5e9",
+          "action": {
+            "type": "hotkey",
+            "hotkey": "space"
+          }
+        },
+        "3": {
+          "title": "00:27:25",
+          "subtitle": "Current Timer",
+          "color": "#ff453a",
+          "action": {
+            "type": "http",
+            "http": {
+              "method": "GET",
+              "url": "http://httpbin.org/get"
+            }
+          }
+        },
+        "4": {
+          "title": "SLIDE CAM",
+          "subtitle": "USE THIS ONE",
+          "color": "#18181b",
+          "action": {
+            "type": "hotkey",
+            "hotkey": "1"
+          }
+        },
+        "5": {
+          "title": "SLIDE OFF",
+          "subtitle": "Companion",
+          "color": "#18181b",
+          "action": {
+            "type": "hotkey",
+            "hotkey": "2"
+          }
+        },
+        "6": {
+          "title": "OVERLAY OFF",
+          "subtitle": "ProP",
+          "color": "#f97316",
+          "action": {
+            "type": "hotkey",
+            "hotkey": "3"
+          }
+        },
+        "7": {
+          "title": "OVERLAY ON",
+          "subtitle": "ProP",
+          "color": "#f97316",
+          "action": {
+            "type": "hotkey",
+            "hotkey": "4"
+          }
+        },
+        "8": {
+          "title": "Clear Slides",
+          "subtitle": "Live",
+          "color": "#ff453a",
+          "action": {
+            "type": "hotkey",
+            "hotkey": "f1"
+          }
+        },
+        "9": {
+          "title": "Clear Props",
+          "subtitle": "Live",
+          "color": "#ff453a",
+          "action": {
+            "type": "hotkey",
+            "hotkey": "f2"
+          }
+        },
+        "10": {
+          "title": "Play",
+          "subtitle": "ProP",
+          "color": "#ff453a",
+          "action": {
+            "type": "media",
+            "media": "play_pause"
+          }
+        },
+        "11": {
+          "title": "Pause",
+          "subtitle": "ProP",
+          "color": "#ff453a",
+          "action": {
+            "type": "media",
+            "media": "play_pause"
+          }
+        },
+        "12": {
+          "title": "Worship",
+          "subtitle": "Standard",
+          "color": "#0ea5e9",
+          "action": {
+            "type": "hotkey",
+            "hotkey": "w"
+          }
+        },
+        "13": {
+          "title": "Video Cut",
+          "subtitle": "Aux 1",
+          "color": "#64748b",
+          "action": {
+            "type": "hotkey",
+            "hotkey": "v"
+          }
+        },
+        "14": {
+          "title": "Audio Mute",
+          "subtitle": "Master",
+          "color": "#ff453a",
+          "action": {
+            "type": "media",
+            "media": "mute"
+          }
+        },
+        "15": {
+          "title": "Blackout",
+          "subtitle": "Emergency",
+          "color": "#ff3b30",
+          "action": {
+            "type": "shell",
+            "command": "echo Blackout"
+          }
+        }
+      }
+    },
+    "Bravia Remote": {
+      "name": "Bravia Remote",
+      "subtitle": "4 connections",
+      "icon": "tv",
+      "buttons": {
+        "1": {
+          "title": "Mute",
+          "subtitle": "Audio",
+          "color": "#ff453a",
+          "action": {
+            "type": "media",
+            "media": "mute"
+          }
+        },
+        "2": {
+          "title": "Play/Pause",
+          "subtitle": "Media",
+          "color": "#0ea5e9",
+          "action": {
+            "type": "media",
+            "media": "play_pause"
+          }
+        },
+        "3": {
+          "title": "Vol Up",
+          "subtitle": "System",
+          "color": "#64748b",
+          "action": {
+            "type": "media",
+            "media": "vol_up"
+          }
+        },
+        "4": {
+          "title": "Vol Down",
+          "subtitle": "System",
+          "color": "#64748b",
+          "action": {
+            "type": "media",
+            "media": "vol_down"
+          }
+        },
+        "5": {
+          "title": "Power",
+          "subtitle": "Sleep",
+          "color": "#ff3b30",
+          "action": {
+            "type": "shell",
+            "command": "pmset displaysleepnow"
+          }
+        },
+        "6": {
+          "title": "Left",
+          "subtitle": "Nav",
+          "color": "#d946ef",
+          "action": {
+            "type": "hotkey",
+            "hotkey": "left"
+          }
+        },
+        "7": {
+          "title": "Select",
+          "subtitle": "OK",
+          "color": "#475569",
+          "action": {
+            "type": "hotkey",
+            "hotkey": "return"
+          }
+        },
+        "8": {
+          "title": "Right",
+          "subtitle": "Nav",
+          "color": "#d946ef",
+          "action": {
+            "type": "hotkey",
+            "hotkey": "right"
+          }
+        },
+        "9": {
+          "title": "Up",
+          "subtitle": "Nav",
+          "color": "#d946ef",
+          "action": {
+            "type": "hotkey",
+            "hotkey": "up"
+          }
+        },
+        "10": {
+          "title": "Down",
+          "subtitle": "Nav",
+          "color": "#d946ef",
+          "action": {
+            "type": "hotkey",
+            "hotkey": "down"
+          }
+        },
+        "11": {
+          "title": "Prev Track",
+          "subtitle": "Media",
+          "color": "#18181b",
+          "action": {
+            "type": "media",
+            "media": "prev"
+          }
+        },
+        "12": {
+          "title": "Next Track",
+          "subtitle": "Media",
+          "color": "#18181b",
+          "action": {
+            "type": "media",
+            "media": "next"
+          }
+        },
+        "13": {
+          "title": "Browser",
+          "subtitle": "Web",
+          "color": "#0ea5e9",
+          "action": {
+            "type": "shell",
+            "command": "open https://github.com"
+          }
+        },
+        "14": {
+          "title": "Terminal",
+          "subtitle": "App",
+          "color": "#f97316",
+          "action": {
+            "type": "shell",
+            "command": "open -a Terminal"
+          }
+        },
+        "15": {
+          "title": "Clear All",
+          "subtitle": "Macro",
+          "color": "#ff453a",
+          "action": {
+            "type": "macro",
+            "macro": [
+              {
+                "type": "media",
+                "media": "mute"
+              },
+              {
+                "type": "delay",
+                "delay_ms": 200
+              },
+              {
+                "type": "shell",
+                "command": "osascript -e 'display notification \"Deck Macro Run\" with title \"Fifine Deck\"'"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "SWITCHER": {
+      "name": "SWITCHER",
+      "subtitle": "8 actions",
+      "icon": "switcher",
+      "buttons": {
+        "1": {
+          "title": "Mute",
+          "subtitle": "Audio",
+          "color": "#ff453a",
+          "action": {
+            "type": "media",
+            "media": "mute"
+          }
+        },
+        "2": {
+          "title": "Play/Pause",
+          "subtitle": "Media",
+          "color": "#0ea5e9",
+          "action": {
+            "type": "media",
+            "media": "play_pause"
+          }
+        },
+        "3": {
+          "title": "Vol Up",
+          "subtitle": "System",
+          "color": "#64748b",
+          "action": {
+            "type": "media",
+            "media": "vol_up"
+          }
+        },
+        "4": {
+          "title": "Vol Down",
+          "subtitle": "System",
+          "color": "#64748b",
+          "action": {
+            "type": "media",
+            "media": "vol_down"
+          }
+        },
+        "5": {
+          "title": "Power",
+          "subtitle": "Sleep",
+          "color": "#ff3b30",
+          "action": {
+            "type": "shell",
+            "command": "pmset displaysleepnow"
+          }
+        },
+        "6": {
+          "title": "Left",
+          "subtitle": "Nav",
+          "color": "#d946ef",
+          "action": {
+            "type": "hotkey",
+            "hotkey": "left"
+          }
+        },
+        "7": {
+          "title": "Select",
+          "subtitle": "OK",
+          "color": "#475569",
+          "action": {
+            "type": "hotkey",
+            "hotkey": "return"
+          }
+        },
+        "8": {
+          "title": "Right",
+          "subtitle": "Nav",
+          "color": "#d946ef",
+          "action": {
+            "type": "hotkey",
+            "hotkey": "right"
+          }
+        },
+        "9": {
+          "title": "Up",
+          "subtitle": "Nav",
+          "color": "#d946ef",
+          "action": {
+            "type": "hotkey",
+            "hotkey": "up"
+          }
+        },
+        "10": {
+          "title": "Down",
+          "subtitle": "Nav",
+          "color": "#d946ef",
+          "action": {
+            "type": "hotkey",
+            "hotkey": "down"
+          }
+        },
+        "11": {
+          "title": "Prev Track",
+          "subtitle": "Media",
+          "color": "#18181b",
+          "action": {
+            "type": "media",
+            "media": "prev"
+          }
+        },
+        "12": {
+          "title": "Next Track",
+          "subtitle": "Media",
+          "color": "#18181b",
+          "action": {
+            "type": "media",
+            "media": "next"
+          }
+        },
+        "13": {
+          "title": "Browser",
+          "subtitle": "Web",
+          "color": "#0ea5e9",
+          "action": {
+            "type": "shell",
+            "command": "open https://github.com"
+          }
+        },
+        "14": {
+          "title": "Terminal",
+          "subtitle": "App",
+          "color": "#f97316",
+          "action": {
+            "type": "shell",
+            "command": "open -a Terminal"
+          }
+        },
+        "15": {
+          "title": "Clear All",
+          "subtitle": "Macro",
+          "color": "#ff453a",
+          "action": {
+            "type": "macro",
+            "macro": [
+              {
+                "type": "media",
+                "media": "mute"
+              },
+              {
+                "type": "delay",
+                "delay_ms": 200
+              },
+              {
+                "type": "shell",
+                "command": "osascript -e 'display notification \"Deck Macro Run\" with title \"Fifine Deck\"'"
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

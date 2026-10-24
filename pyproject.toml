@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fifine-ampligame-d6"
+version = "2.1.0"
+description = "Pure standalone native USB driver and Bitfocus Companion bridge for Fifine AmpliGame D6."
+readme = "README.md"
+requires-python = ">=3.8"
+authors = [
+    { name = "Micah Crandell" }
+]
+license = { text = "MIT" }
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows"
+]
+
+[project.scripts]
+fifine = "fifine.cli:main"
