@@ -397,7 +397,8 @@ def convert_image_to_jpeg(
                 img_rgb = source.convert("RGB").resize(
                     (width, height), Image.Resampling.LANCZOS
                 )
-            return rgb_buffer_to_jpeg(img_rgb.tobytes(), width, height)
+            # JPEG inputs may already be rotated by their caller; only re-encode them here.
+            return _encode_pillow_jpeg(img_rgb)
         # Maybe raw RGB? Check length
         if len(image) == width * height * 3:
             return rgb_buffer_to_jpeg(image, width, height)

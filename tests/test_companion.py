@@ -82,6 +82,38 @@ class TestCompanionProtocol(unittest.TestCase):
         decoded = decode_companion_bitmap(b64, (100, 100))
         self.assert_d6_jpeg(decoded, (100, 100))
 
+    def test_companion_bitmap_is_rotated_180_degrees_once(self):
+        image = Image.new("RGB", (100, 100))
+        colors = {
+            (0, 0): (255, 0, 0),
+            (1, 0): (0, 255, 0),
+            (0, 1): (0, 0, 255),
+            (1, 1): (255, 255, 0),
+        }
+        for y in range(100):
+            for x in range(100):
+                image.putpixel((x, y), colors[(x // 50, y // 50)])
+
+        source = io.BytesIO()
+        image.save(source, format="PNG")
+        bitmap = base64.b64encode(source.getvalue()).decode("ascii")
+        decoded = decode_companion_bitmap(bitmap, (100, 100), zoom=1.0)
+        converted = convert_image_to_jpeg(decoded, 100, 100)
+        self.assert_d6_jpeg(converted, (100, 100))
+
+        with Image.open(io.BytesIO(converted)) as output:
+            top_left = output.getpixel((10, 10))
+            top_right = output.getpixel((90, 10))
+            bottom_left = output.getpixel((10, 90))
+            bottom_right = output.getpixel((90, 90))
+
+        self.assertGreater(top_left[0], 150)
+        self.assertGreater(top_left[1], 150)
+        self.assertGreater(top_right[2], 150)
+        self.assertGreater(bottom_left[1], 150)
+        self.assertGreater(bottom_right[0], 150)
+        self.assertLess(bottom_right[1], 100)
+
     def test_convert_jpeg_is_resized_and_reencoded_for_d6(self):
         image = Image.new("RGB", (72, 72), color=(0, 255, 0))
         source = io.BytesIO()
