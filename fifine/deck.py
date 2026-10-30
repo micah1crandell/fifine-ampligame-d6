@@ -2,7 +2,7 @@
 
 Provides an ergonomic Python API to control the 15-key LCD display,
 listen to button events, manage brightness, and stream key graphics.
-Works 100% standalone over USB with zero background daemons or binary dependencies.
+Works standalone over USB with no background daemons; Pillow provides D6-compatible JPEG encoding.
 """
 
 import signal

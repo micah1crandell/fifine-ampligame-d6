@@ -3,11 +3,11 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.8+](https://img.shields.io/badge/Python-3.8%2B-brightgreen.svg)](https://www.python.org/)
 [![Hardware: Fifine AmpliGame D6](https://img.shields.io/badge/Hardware-Fifine%20AmpliGame%20D6%20%2F%20D6--Pro-orange.svg)](#hardware-identification--usb-descriptor)
-[![Dependencies: Zero](https://img.shields.io/badge/Dependencies-Zero%20(Pure%20Native)-success.svg)](#requirements--installation)
+[![Image Encoding: Pillow](https://img.shields.io/badge/Image%20Encoding-Pillow-blue.svg)](#requirements--installation)
 
 A 100% standalone, pure Python native USB driver, LCD graphics engine, and zero-configuration **Bitfocus Companion Satellite bridge** for the **Fifine AmpliGame D6** (HotSpot / MiraBox StreamDock D6 & D6-Pro 15-key LCD deck) on macOS.
 
-**NO proprietary vendor software. NO background daemons. ZERO binary dependencies. ZERO root/sudo privileges.**  
+**NO proprietary vendor software. NO background daemons. NO USB driver packages. ZERO root/sudo privileges.**
 Direct, low-level USB communication with sub-10ms hardware latency, full per-key 100×100 LCD tile rendering, and seamless two-way Bitfocus Companion show automation.
 
 ---
@@ -300,7 +300,7 @@ flowchart TD
 6. **The Vertical Button Matrix Inversion:**  
    The hardware MCU registers button presses with hardware key IDs `0x0B..0x0F` for the physical top row and `0x01..0x05` for the physical bottom row. Direct 1:1 mapping results in vertically inverted key events.
 7. **The Restart Marker & DRI Trap (Partial Scanline Rendering):**  
-   The embedded MCU firmware (TJpgDec hardware decoder) strictly requires pure baseline sequential JPEGs. If a host encoder (such as Apple ImageIO / `sips` multithreaded encoding) inserts **DRI (Define Restart Interval, marker `0xFFDD`)** or **Restart Markers (`0xFFD0` through `0xFFD7`)** inside the entropy scan data, the MCU's internal bitstream parser faults at the first restart marker after 16–20 scanlines, leaving the rest of the 100×100 display black. Only single-scan baseline JPEGs without restart markers paint the full 100 scanlines edge-to-edge.
+   The embedded MCU firmware (TJpgDec hardware decoder) strictly requires baseline sequential JPEGs without **DRI (`0xFFDD`)** or **Restart Markers (`0xFFD0` through `0xFFD7`)**. macOS `sips` can emit restart markers, and removing those markers from the compressed scan is not safe because they reset JPEG decoder state. The driver now decodes and re-encodes incoming images with Pillow, explicitly disables progressive encoding, and rejects restart-marked output rather than sending an image that renders only partially.
 
 ---
 
@@ -507,7 +507,7 @@ Byte 12..511: 0x00 (Zero Padding)
 │        FifineDisplay         │          │         FifineDriver         │
 │  - 100x100 Pixel Canvas      │          │  - Dual-Thread Architecture  │
 │  - 180° Inverted Rotation    │          │  - Native IOKit CFRunLoop    │
-│  - Sips / Pillow Fallback    │          │  - Paced 1024B Write Thread  │
+│  - Pillow Baseline JPEG      │          │  - Paced 1024B Write Thread  │
 │  - Baseline JPEG Generator   │          │  - Keepalive Heartbeat       │
 └──────────────┬───────────────┘          └──────────────┬───────────────┘
                │                                         │
@@ -531,7 +531,8 @@ Byte 12..511: 0x00 (Zero Padding)
 
 * **Operating System:** macOS (macOS 11 Big Sur, 12 Monterey, 13 Ventura, 14 Sonoma, 15 Sequoia or newer on Apple Silicon or Intel).
 * **Python Version:** Python 3.8+ (uses standard library `ctypes`, `threading`, and `socket`).
-* **Binary Dependencies:** **Zero.** No `hidapi` C extensions, no `libusb`, no Homebrew C packages.
+* **Image Encoding:** Pillow 10.4+ (installed automatically with the package). This is required to produce JPEGs the D6 decoder can render fully.
+* **USB Dependencies:** None. No `hidapi` C extensions, no `libusb`, no Homebrew C packages.
 
 ### Clone & Run
 
@@ -543,7 +544,9 @@ cd fifine-ampligame-d6
 Or install as an editable package:
 
 ```bash
-pip install -e .
+python3 -m venv .venv
+.venv/bin/python -m pip install -e .
+.venv/bin/fifine companion
 ```
 
 ---

@@ -6,20 +6,17 @@ inside Bitfocus Companion using the official Companion Satellite protocol over T
 
 import base64
 import io
-import os
 import re
 import select
 import socket
-import subprocess
 import sys
-import tempfile
 import threading
 import time
 from typing import Callable, Dict, Optional, Tuple, Any
 
 from .deck import FifineDeck
 from .events import KeyEvent
-from .display import clean_baseline_jpeg, rotate_buffer_180, generate_solid_color_jpeg
+from .display import rgb_buffer_to_jpeg, generate_solid_color_jpeg
 
 try:
     from PIL import Image
@@ -73,114 +70,34 @@ def decode_companion_bitmap(
         print(f"[decode_companion_bitmap Error] Invalid base64: {e}", file=sys.stderr)
         return None
 
-    # 1. If already JPEG
-    if raw.startswith(b"\xff\xd8"):
-        return clean_baseline_jpeg(raw)
-
-    # Calculate filter string: crop outer margin if zoom > 1.0, scale to target_size, flip 180°
-    if zoom > 1.0:
-        vf_filter = f"crop=in_w/{zoom:.2f}:in_h/{zoom:.2f},scale={target_size[0]}:{target_size[1]},hflip,vflip"
-    else:
-        vf_filter = f"scale={target_size[0]}:{target_size[1]},hflip,vflip"
-
-    # 2. Try ffmpeg directly (pure baseline JPEG without restart markers, fast in-memory pipe)
-    try:
-        proc = subprocess.run(
-            [
-                "ffmpeg",
-                "-y",
-                "-i", "pipe:0",
-                "-vf", vf_filter,
-                "-vframes", "1",
-                "-q:v", "2",
-                "-f", "image2",
-                "pipe:1"
-            ],
-            input=raw,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            check=True,
+    if not HAS_PILLOW:
+        print(
+            "[decode_companion_bitmap Error] Pillow is required for D6-compatible JPEG encoding.",
+            file=sys.stderr,
         )
-        if proc.stdout and proc.stdout.startswith(b"\xff\xd8"):
-            return clean_baseline_jpeg(proc.stdout)
-    except (subprocess.SubprocessError, FileNotFoundError, OSError):
-        pass
+        return None
 
-    # 3. Try Pillow if available
-    if HAS_PILLOW:
-        try:
-            img = Image.open(io.BytesIO(raw)).convert("RGB")
+    try:
+        with Image.open(io.BytesIO(raw)) as source:
+            img = source.convert("RGB")
             if zoom > 1.0:
-                cw = int(img.width / zoom)
-                ch = int(img.height / zoom)
+                cw = max(1, int(img.width / zoom))
+                ch = max(1, int(img.height / zoom))
                 left = (img.width - cw) // 2
                 top = (img.height - ch) // 2
                 img = img.crop((left, top, left + cw, top + ch))
             if img.size != target_size:
                 img = img.resize(target_size, Image.Resampling.LANCZOS)
-            rotated = rotate_buffer_180(bytearray(img.tobytes()), target_size[0], target_size[1])
-            rot_img = Image.frombytes("RGB", target_size, bytes(rotated))
-            buf = io.BytesIO()
-            rot_img.save(buf, format="JPEG", quality=90)
-            return clean_baseline_jpeg(buf.getvalue())
-        except Exception:
-            pass
+            return rgb_buffer_to_jpeg(img.tobytes(), target_size[0], target_size[1])
+    except OSError:
+        pass
 
-    # 4. Native macOS sips converter (converts to uncompressed BMP, then routes through rgb_buffer_to_jpeg)
-    is_png = raw.startswith(b"\x89PNG")
-    is_webp = len(raw) > 12 and raw[0:4] == b"RIFF" and raw[8:12] == b"WEBP"
-
-    if is_png or is_webp:
-        suffix = ".png" if is_png else ".webp"
-        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as f_in:
-            f_in.write(raw)
-            in_name = f_in.name
-        out_bmp = in_name + ".bmp"
-        try:
-            subprocess.run(
-                ["sips", "-s", "format", "bmp", "-z", str(target_size[1]), str(target_size[0]), in_name, "--out", out_bmp],
-                check=True,
-                capture_output=True,
-            )
-            with open(out_bmp, "rb") as f_out:
-                bmp_data = f_out.read()
-            if len(bmp_data) >= 54 + target_size[0] * target_size[1] * 3:
-                raw_bgr = bmp_data[54:]
-                row_stride = ((target_size[0] * 3 + 3) // 4) * 4
-                rgb_pixels = bytearray(target_size[0] * target_size[1] * 3)
-                for y in range(target_size[1]):
-                    src_y = target_size[1] - 1 - y  # BMP is bottom-to-top
-                    src_offset = src_y * row_stride
-                    dst_offset = y * target_size[0] * 3
-                    for x in range(target_size[0]):
-                        b = raw_bgr[src_offset + x * 3]
-                        g = raw_bgr[src_offset + x * 3 + 1]
-                        r = raw_bgr[src_offset + x * 3 + 2]
-                        rgb_pixels[dst_offset + x * 3] = r
-                        rgb_pixels[dst_offset + x * 3 + 1] = g
-                        rgb_pixels[dst_offset + x * 3 + 2] = b
-                from .display import rgb_buffer_to_jpeg
-                return rgb_buffer_to_jpeg(bytes(rgb_pixels), target_size[0], target_size[1])
-        except Exception as e:
-            print(f"[CompanionBridge sips BMP error]: {e}", file=sys.stderr)
-        finally:
-            if os.path.exists(in_name):
-                os.unlink(in_name)
-            if os.path.exists(out_bmp):
-                os.unlink(out_bmp)
-
-    # 5. Raw RGB or RGBA buffer (e.g. 72x72x3 or 72x72x4 or 100x100x3)
+    # Raw RGB or RGBA payloads (e.g. 72x72x3 or 100x100x4).
     for w, h, ch in [(72, 72, 3), (72, 72, 4), (100, 100, 3), (100, 100, 4)]:
         if len(raw) == w * h * ch:
-            if ch == 4:
-                rgb_bytes = bytearray(w * h * 3)
-                for src_idx in range(w * h):
-                    rgb_bytes[src_idx * 3 : src_idx * 3 + 3] = raw[src_idx * 4 : src_idx * 4 + 3]
-            else:
-                rgb_bytes = raw
-
-            from .display import rgb_buffer_to_jpeg
-            return rgb_buffer_to_jpeg(bytes(rgb_bytes), w, h)
+            mode = "RGBA" if ch == 4 else "RGB"
+            img = Image.frombytes(mode, (w, h), raw).convert("RGB")
+            return rgb_buffer_to_jpeg(img.tobytes(), w, h)
 
     return None
 

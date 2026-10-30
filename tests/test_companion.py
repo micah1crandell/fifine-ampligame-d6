@@ -8,18 +8,15 @@ import time
 import unittest
 from unittest.mock import MagicMock
 
+from PIL import Image
+
 from fifine.companion import (
     parse_satellite_line,
     decode_companion_bitmap,
     CompanionBridge,
 )
+from fifine.display import clean_baseline_jpeg, convert_image_to_jpeg
 from fifine.events import KeyEvent
-
-try:
-    from PIL import Image
-    HAS_PILLOW = True
-except ImportError:
-    HAS_PILLOW = False
 
 
 class TestCompanionProtocol(unittest.TestCase):
@@ -50,51 +47,48 @@ class TestCompanionProtocol(unittest.TestCase):
         self.assertEqual(cmd, "PING")
         self.assertEqual(args["_raw_payload"], "1718900000")
 
-    def test_decode_raw_jpeg_fallback(self):
-        # Fake minimal JPEG SOI marker
-        raw_jpeg = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00" + b"\x00" * 20 + b"\xff\xd9"
+    def assert_d6_jpeg(self, jpeg, expected_size):
+        self.assertTrue(jpeg.startswith(b"\xff\xd8"))
+        self.assertTrue(jpeg.endswith(b"\xff\xd9"))
+        self.assertIn(b"JFIF\x00", jpeg[:20])
+        self.assertIn(b"\xff\xc0", jpeg)
+        self.assertNotIn(b"\xff\xc2", jpeg)
+        self.assertNotIn(b"\xff\xdd", jpeg)
+        self.assertFalse(
+            any(bytes((0xFF, marker)) in jpeg for marker in range(0xD0, 0xD8))
+        )
+        with Image.open(io.BytesIO(jpeg)) as image:
+            self.assertEqual(image.size, expected_size)
+
+    def test_clean_baseline_jpeg_rejects_restart_markers(self):
+        with self.assertRaisesRegex(ValueError, "restart markers"):
+            clean_baseline_jpeg(b"\xff\xd8\xff\xd0\xff\xd9")
+
+    def test_decode_jpeg_is_resized_and_reencoded_for_d6(self):
+        image = Image.new("RGB", (72, 72), color=(255, 0, 0))
+        source = io.BytesIO()
+        image.save(source, format="JPEG")
+        raw_jpeg = source.getvalue()
         b64 = base64.b64encode(raw_jpeg).decode("ascii")
         decoded = decode_companion_bitmap(b64, (100, 100))
-        self.assertIsNotNone(decoded)
-        self.assertTrue(decoded.startswith(b"\xff\xd8"))
-        self.assertTrue(decoded.endswith(b"\xff\xd9"))
+        self.assert_d6_jpeg(decoded, (100, 100))
 
-    def test_decode_png_with_sips(self):
-        # Create a small 2x2 PNG using sips
-        import tempfile, subprocess, os
-        with tempfile.NamedTemporaryFile(suffix=".ppm", delete=False) as f:
-            f.write(b"P6\n2 2\n255\n\xff\x00\x00\x00\xff\x00\x00\x00\xff\xff\xff\x00")
-            ppm_path = f.name
-        png_path = ppm_path + ".png"
-        try:
-            subprocess.run(["sips", "-s", "format", "png", ppm_path, "--out", png_path], check=True, capture_output=True)
-            with open(png_path, "rb") as f:
-                png_bytes = f.read()
-            b64_str = base64.b64encode(png_bytes).decode("ascii")
-
-            # Decode via decode_companion_bitmap
-            decoded_jpeg = decode_companion_bitmap(b64_str, (100, 100))
-            self.assertIsNotNone(decoded_jpeg)
-            self.assertTrue(decoded_jpeg.startswith(b"\xff\xd8"))
-            self.assertTrue(decoded_jpeg.endswith(b"\xff\xd9"))
-        finally:
-            for p in [ppm_path, png_path]:
-                if os.path.exists(p):
-                    os.unlink(p)
-
-    def test_decode_companion_bitmap(self):
-        if not HAS_PILLOW:
-            self.skipTest("Pillow not installed")
-
-        # Generate 100x100 PNG
-        test_img = Image.new("RGB", (72, 72), color=(255, 0, 0))
-        buf = io.BytesIO()
-        test_img.save(buf, format="PNG")
-        b64 = base64.b64encode(buf.getvalue()).decode("ascii")
+    def test_decode_png_for_d6(self):
+        image = Image.new("RGB", (72, 72), color=(255, 0, 0))
+        source = io.BytesIO()
+        image.save(source, format="PNG")
+        b64 = base64.b64encode(source.getvalue()).decode("ascii")
 
         decoded = decode_companion_bitmap(b64, (100, 100))
-        self.assertIsNotNone(decoded)
-        self.assertEqual(decoded.size, (100, 100))
+        self.assert_d6_jpeg(decoded, (100, 100))
+
+    def test_convert_jpeg_is_resized_and_reencoded_for_d6(self):
+        image = Image.new("RGB", (72, 72), color=(0, 255, 0))
+        source = io.BytesIO()
+        image.save(source, format="JPEG")
+
+        converted = convert_image_to_jpeg(source.getvalue(), 100, 100)
+        self.assert_d6_jpeg(converted, (100, 100))
 
 
 class TestCompanionBridgeMock(unittest.TestCase):

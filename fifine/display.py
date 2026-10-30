@@ -1,14 +1,11 @@
 """LCD Framebuffer Engine for Fifine AmpliGame Stream Deck (D6 / D6-Pro).
 
-Implements the proprietary 512-byte 'CRT' USB output protocol to stream
-JPEG frames, control backlight brightness, and wake the hardware from cold standby.
-Works 100% standalone with zero binary dependencies.
+Implements the proprietary 1024-byte 'CRT' USB output protocol to stream
+D6-compatible JPEG frames, control backlight brightness, and wake the hardware.
 """
 
-import os
+import io
 import struct
-import subprocess
-import tempfile
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union, Any
 
@@ -197,8 +194,23 @@ def rotate_buffer_180(pixels: bytearray, width: int, height: int) -> bytearray:
     return out
 
 
+def _require_pillow():
+    try:
+        from PIL import Image
+    except ImportError as exc:
+        raise RuntimeError(
+            "Pillow is required for D6-compatible JPEG encoding. "
+            "Install the package with `python -m pip install -e .`."
+        ) from exc
+    return Image
+
+
+def _contains_jpeg_restart_markers(data: bytes) -> bool:
+    return any(bytes((0xFF, marker)) in data for marker in range(0xD0, 0xD8))
+
+
 def clean_baseline_jpeg(data: bytes) -> bytes:
-    """Strips 0xFFDD (DRI) and APP metadata segments (0xFFE1..0xFFEF), preserving only baseline markers.
+    """Strips unsupported metadata and rejects restart markers the D6 decoder cannot handle.
 
     Preserves only:
     - 0xFFD8: SOI (Start of Image)
@@ -209,6 +221,10 @@ def clean_baseline_jpeg(data: bytes) -> bytes:
     """
     if not data or not data.startswith(b"\xff\xd8"):
         return data
+    if _contains_jpeg_restart_markers(data):
+        raise ValueError(
+            "JPEG contains restart markers; decode and re-encode it for the D6 instead of stripping markers."
+        )
 
     out = bytearray(b"\xff\xd8")
     i = 2
@@ -262,61 +278,30 @@ def clean_baseline_jpeg(data: bytes) -> bytes:
     return bytes(out)
 
 
+def _encode_pillow_jpeg(image: Any, quality: int = 90) -> bytes:
+    buf = io.BytesIO()
+    image.save(
+        buf,
+        format="JPEG",
+        quality=quality,
+        optimize=False,
+        progressive=False,
+    )
+    return clean_baseline_jpeg(buf.getvalue())
+
+
 def rgb_buffer_to_jpeg(pixels: bytes, width: int, height: int, quality: int = 90) -> bytes:
     """Encodes raw 24-bit RGB bytes into pure baseline JPEG format with 180° rotation.
 
-    Uses Pillow if installed, otherwise uses native macOS 'sips' with zero binary dependencies.
+    Pillow's JPEG encoder is required because the D6 decoder cannot render restart markers.
     """
-    # 180° buffer rotation for inverted LCD hardware mounting
+    if width <= 0 or height <= 0 or len(pixels) != width * height * 3:
+        raise ValueError("RGB pixel buffer length must equal width * height * 3.")
+
+    Image = _require_pillow()
     rotated = rotate_buffer_180(bytearray(pixels), width, height)
-
-    # 1. Try Pillow if available
-    try:
-        from PIL import Image
-        import io
-        img = Image.frombytes("RGB", (width, height), bytes(rotated))
-        buf = io.BytesIO()
-        img.save(buf, format="JPEG", quality=quality)
-        return clean_baseline_jpeg(buf.getvalue())
-    except ImportError:
-        pass
-
-    # 2. Try ffmpeg if available (pure baseline JPEG without restart markers)
-    try:
-        header = f"P6\n{width} {height}\n255\n".encode("ascii")
-        proc = subprocess.run(
-            ["ffmpeg", "-y", "-f", "image2pipe", "-vcodec", "ppm", "-i", "pipe:0", "-vframes", "1", "-q:v", "2", "-f", "image2", "pipe:1"],
-            input=header + rotated,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            check=True,
-        )
-        return clean_baseline_jpeg(proc.stdout)
-    except (subprocess.SubprocessError, FileNotFoundError):
-        pass
-
-    # 3. Use native macOS sips tool (built-in on every macOS system)
-    with tempfile.NamedTemporaryFile(suffix=".ppm", delete=False) as f:
-        ppm_path = f.name
-        header = f"P6\n{width} {height}\n255\n".encode("ascii")
-        f.write(header + rotated)
-
-    jpg_path = ppm_path.replace(".ppm", ".jpg")
-    try:
-        res = subprocess.run(
-            ["sips", "-s", "format", "jpeg", ppm_path, "--out", jpg_path],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            check=True,
-        )
-        with open(jpg_path, "rb") as f:
-            jpeg_bytes = f.read()
-        return clean_baseline_jpeg(jpeg_bytes)
-    finally:
-        if os.path.exists(ppm_path):
-            os.remove(ppm_path)
-        if os.path.exists(jpg_path):
-            os.remove(jpg_path)
+    image = Image.frombytes("RGB", (width, height), bytes(rotated))
+    return _encode_pillow_jpeg(image, quality)
 
 
 def generate_solid_color_jpeg(
@@ -407,7 +392,12 @@ def convert_image_to_jpeg(
     # 1. Raw bytes
     if isinstance(image, bytes):
         if image.startswith(b"\xff\xd8"):
-            return clean_baseline_jpeg(image)
+            Image = _require_pillow()
+            with Image.open(io.BytesIO(image)) as source:
+                img_rgb = source.convert("RGB").resize(
+                    (width, height), Image.Resampling.LANCZOS
+                )
+            return rgb_buffer_to_jpeg(img_rgb.tobytes(), width, height)
         # Maybe raw RGB? Check length
         if len(image) == width * height * 3:
             return rgb_buffer_to_jpeg(image, width, height)
@@ -422,35 +412,19 @@ def convert_image_to_jpeg(
                 return generate_solid_color_jpeg(image, width, height)
             raise FileNotFoundError(f"Image file not found: {image}")
 
-        # Try PIL first
-        try:
-            from PIL import Image
-            with Image.open(p) as img:
-                img_rgb = img.convert("RGB").resize((width, height), Image.Resampling.LANCZOS)
-                return rgb_buffer_to_jpeg(img_rgb.tobytes(), width, height)
-        except ImportError:
-            pass
-
-        # Try native macOS sips (resample to width x height, rotate 180°, and clean baseline JPEG)
-        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp_out:
-            out_path = tmp_out.name
-
-        try:
-            subprocess.run(
-                ["sips", "-s", "format", "jpeg", "-r", "180", "-z", str(height), str(width), str(p), "--out", out_path],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                check=True,
+        Image = _require_pillow()
+        with Image.open(p) as img:
+            img_rgb = img.convert("RGB").resize(
+                (width, height), Image.Resampling.LANCZOS
             )
-            with open(out_path, "rb") as f:
-                return clean_baseline_jpeg(f.read())
-        finally:
-            if os.path.exists(out_path):
-                os.remove(out_path)
+        return rgb_buffer_to_jpeg(img_rgb.tobytes(), width, height)
 
     # 3. PIL Image object
     if hasattr(image, "convert") and hasattr(image, "resize"):
-        img_rgb = image.convert("RGB").resize((width, height))
+        Image = _require_pillow()
+        img_rgb = image.convert("RGB").resize(
+            (width, height), Image.Resampling.LANCZOS
+        )
         return rgb_buffer_to_jpeg(img_rgb.tobytes(), width, height)
 
     # 4. Color tuple/list
